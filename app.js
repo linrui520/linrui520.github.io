@@ -399,6 +399,274 @@
     }
     renderEnvironment();renderStep();
   }
+const reviewQuestions = {
+  'start/1': {
+    question: '计分器收到“投中 3 球”，按每球 2 分计算，屏幕显示 6 分。哪一项是输出？',
+    choices: ['投中 3 球', '每球算 2 分的规则', '屏幕上的 6 分'],
+    answer: 2,
+    explanation: '输出是程序处理完交给你的结果，这里就是 6 分。'
+  },
+  'start/2': {
+    question: '小雨想在 Mac 上写一个谜语小游戏。她要打开哪个开发工具来编辑和运行代码？',
+    choices: ['Swift', 'Xcode', 'macOS'],
+    answer: 1,
+    explanation: '她在 Xcode 里编辑和运行代码，用 Swift 写游戏规则，做好后可以在 macOS 上玩。'
+  },
+  'start/3': {
+    question: '想让电脑显示“喵！”，下面哪一行写对了？',
+    choices: ['print("喵！")', 'Print("喵！")', 'print（"喵！"）'],
+    answer: 0,
+    explanation: '函数名 print 全部小写，外面用英文半角圆括号，问候语放在英文双引号里。'
+  },
+  '1/1': {
+    question: '在命令行项目的 main.swift 里写好 print("出发！")，按 ⌘R 后去哪里找“出发！”？',
+    choices: ['左侧的文件列表', '底部的控制台', '顶部的项目名称'],
+    answer: 1,
+    explanation: '命令行程序运行时，print 输出的文字会出现在 Xcode 的控制台里。'
+  },
+  '1/2': {
+    question: '星星数从 var stars = 2 开始，执行 stars += 1 后，一共有几颗？',
+    choices: ['1 颗', '2 颗', '3 颗'],
+    answer: 2,
+    explanation: '+= 1 会把原来的 2 加上 1，再把 3 存回 stars。'
+  },
+  '2/1': {
+    question: '丝带长 7 米，要平均分成两段。哪种写法能算出每段 3.5 米？',
+    choices: ['Double(7) / Double(2)', '7 / 2', 'Double(7 / 2)'],
+    answer: 0,
+    explanation: '先换成 Double 再相除，能保留半米。先算整数 7 / 2 只会得到 3。'
+  },
+  '2/2': {
+    question: '已经写了 let pet = "小兔"。运行 print("晚安，\\(pet)") 会看到什么？',
+    choices: ['晚安，pet', '小兔，晚安', '晚安，小兔'],
+    answer: 2,
+    explanation: 'Swift 把文字里的 \\(pet) 换成 pet 的值“小兔”，其余文字保持原样。'
+  },
+  '3/1': {
+    question: '宝箱需要至少 4 把钥匙。现在只有 3 把，检查 if keys >= 4 时会走哪条路？',
+    choices: ['走 else，提醒继续找钥匙', '走 if，打开宝箱', '两条路都走'],
+    answer: 0,
+    explanation: '3 小于 4，条件不成立，程序会执行 else 里的提醒。'
+  },
+  '3/2': {
+    question: '小猫按轮号 2...4 跳，每个轮号跳一次。它一共跳几次？',
+    choices: ['2 次', '3 次', '4 次'],
+    answer: 1,
+    explanation: '这个范围包含 2、3、4。三个轮号各跳一次，共跳 3 次。'
+  },
+  '4/1': {
+    question: '每包有 4 张贴纸。函数用 return packs * 4 交回总数，packs 是 3 时会交回几张？',
+    choices: ['3 张', '7 张', '12 张'],
+    answer: 2,
+    explanation: '这次传入 3 包，函数算出 3 × 4，再用 return 把 12 交回去。'
+  },
+  '4/2': {
+    question: '报数函数 countDown(start: Int = 5) 有个默认起点。调用 countDown() 时从几开始？',
+    choices: ['5', '0', '1'],
+    answer: 0,
+    explanation: '调用时没填 start，函数就采用事先写好的默认值 5。'
+  },
+  '5/1': {
+    question: '队伍是 var pets = ["猫", "兔"]。执行 pets.append("鹿") 后，位置号 2 上是谁？',
+    choices: ['兔', '鹿', '猫'],
+    answer: 1,
+    explanation: '猫在位置 0，兔在位置 1。append 把鹿放到队尾，位置号正好是 2。'
+  },
+  '5/2': {
+    question: '字典 stock 是 ["苹果": 3]。读取 stock["苹果"] ?? 1，会得到几？',
+    choices: ['3', '1', '0'],
+    answer: 0,
+    explanation: '字典里能找到“苹果”，所以取到存好的 3。只有找不到时才会用备用值 1。'
+  },
+  '6/1': {
+    question: '在 VStack 里先放 Text("月亮")，下一行放 Text("星星")。窗口里哪行在上？',
+    choices: ['星星', '两行一样高、并排显示', '月亮'],
+    answer: 2,
+    explanation: 'VStack 按书写顺序从上往下排，所以先写的“月亮”在上面。'
+  },
+  '6/2': {
+    question: '窗口用 @State 记分，起点是 1 分。按钮每点一下就加 2 分，点一次后窗口显示几分？',
+    choices: ['1 分', '3 分', '2 分'],
+    answer: 1,
+    explanation: '点击把分数从 1 改成 3。SwiftUI 会更新读取这个分数的文字。'
+  }
+};
+
+  const reviewKeyPrefix = "swift-lab-review-v1:";
+  const reviewSessionFlags = new Set();
+  let reviewSavedLocally = true;
+  let reviewLessonId;
+  let reviewMidnightTimer;
+
+  function reviewStorageKey(key) {
+    return typeof key === "string" && key.startsWith(reviewKeyPrefix);
+  }
+  function reviewDateId(date) {
+    return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" + String(date.getDate()).padStart(2, "0");
+  }
+  function reviewEarlierDay(date, days) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate() - days, 12);
+  }
+  function reviewFlag(kind, date, write = false) {
+    const key = reviewKeyPrefix + kind + ":" + reviewDateId(date);
+    try {
+      if (write) localStorage.setItem(key, "1");
+      return reviewSessionFlags.has(key) || localStorage.getItem(key) === "1";
+    } catch {
+      reviewSavedLocally = false;
+      if (write) reviewSessionFlags.add(key);
+      return reviewSessionFlags.has(key);
+    }
+  }
+  function recordStudyToday() {
+    reviewFlag("studied", new Date(), true);
+    updateReviewDay();
+  }
+  function updateReviewDay() {
+    clearTimeout(reviewMidnightTimer);
+    const panel = main.querySelector("[data-review-day]");
+    if (!panel || location.hash !== "#review") return;
+    const today = new Date();
+    const checked = reviewFlag("checked", today);
+    const eligible = reviewFlag("studied", today);
+    let streak = 0;
+    let cursor = checked ? today : reviewEarlierDay(today, 1);
+    while (reviewFlag("checked", cursor)) {
+      streak++;
+      cursor = reviewEarlierDay(cursor, 1);
+    }
+    panel.querySelector("[data-review-streak]").textContent = String(streak);
+    const days = [];
+    for (let daysAgo = 6; daysAgo >= 0; daysAgo--) {
+      const day = reviewEarlierDay(today, daysAgo);
+      const dateId = reviewDateId(day);
+      const done = reviewFlag("checked", day);
+      const label = (day.getMonth() + 1) + "/" + day.getDate();
+      days.push('<li data-review-date="' + dateId + '" data-checked="' + done + '" aria-label="' +
+        label + (daysAgo ? "" : " 今天") + (done ? "，已打卡" : "，未打卡") + '">' +
+        '<span aria-hidden="true">' + (done ? "✓" : "·") + '</span><small aria-hidden="true">' +
+        (daysAgo ? label : "今天") + '</small></li>');
+    }
+    panel.querySelector("[data-review-week]").innerHTML = days.join("");
+    const button = panel.querySelector("[data-review-checkin]");
+    button.disabled = checked || !eligible;
+    button.textContent = checked ? "今天已打卡 ✓" : "今天打卡";
+    const hint = panel.querySelector("[data-review-check-hint]");
+    const text = checked ? "今天的学习已经记下来啦。" : eligible ?
+      "今天已经完成练习，点一下就能打卡。" : "今天学完一课，或答对一道复习题，就能打卡。";
+    if (hint.textContent !== text) hint.textContent = text;
+    panel.querySelector("[data-review-local]").textContent = reviewSavedLocally ?
+      "记录保存在当前浏览器。" : "当前浏览器只在本次打开期间记录打卡。";
+    const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    reviewMidnightTimer = setTimeout(updateReviewDay, tomorrow.getTime() - today.getTime() + 50);
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) updateReviewDay();
+  });
+  window.addEventListener("pageshow", updateReviewDay);
+  window.addEventListener("hashchange", () => {
+    if (location.hash !== "#review") clearTimeout(reviewMidnightTimer);
+  });
+
+  function showReview() {
+    const bankItem = id => reviewQuestions instanceof Map ? reviewQuestions.get(id) : reviewQuestions[id];
+    const lessons = ids.filter(id => completed.has(id) && canStudy(id) && bankItem(id));
+    if (!lessons.includes(reviewLessonId)) reviewLessonId = lessons[lessons.length - 1];
+    main.innerHTML = `<style>
+      .review-page{color:var(--ink,#2d3028)}.review-page .inner-head{padding-bottom:20px}
+      .review-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px;align-items:start}
+      .review-box{min-width:0;padding:clamp(16px,3vw,28px);border:1px solid #b6b6a7;border-radius:9px;background:#fdfbf5}
+      .review-box h2{font-size:clamp(21px,2.3vw,27px);margin:0 0 12px}.review-box p{line-height:1.65}
+      .review-box button:disabled{cursor:default}.review-box .primary:disabled{background:#dbdbcd;border-color:#cacabb;color:#595e50}
+      .review-quiz label{font-weight:600;display:block;margin-bottom:5px}
+      .review-quiz select{display:block;width:100%;min-height:44px;padding:8px 34px 8px 10px;border:1px solid #9b9e8c;border-radius:5px;color:inherit;background-color:#fffdf6;font:inherit;appearance:none;background-image:linear-gradient(45deg,transparent 50%,#555a4a 50%),linear-gradient(135deg,#555a4a 50%,transparent 50%);background-size:5px 5px;background-position:calc(100% - 17px) 50%,calc(100% - 12px) 50%;background-repeat:no-repeat}
+      .review-q h3{font-size:1.13rem;line-height:1.65;margin:18px 0 10px;white-space:pre-line}
+      .review-choices{display:grid;gap:7px}.review-choices button{min-height:44px;background:#fffef8;color:inherit;border:1px solid #b5b6a7;border-radius:5px;padding:9px 12px;text-align:left;font:inherit;line-height:1.5;overflow-wrap:anywhere;white-space:pre-line}
+      .review-choices button[data-result=right]{border-color:#5b6f48;background:#e1eed7}
+      .review-choices button[data-result=wrong]{border-color:#b47155;background:#f8e4d6}
+      .review-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.review-actions [hidden]{display:none}
+      .review-feedback:not(:empty){margin:12px 0}
+      .review-day{background:#f4f1e5}.review-streak{display:flex;align-items:baseline;gap:6px;margin:4px 0 12px}.review-streak strong{font:700 2rem/1.1 var(--mono,monospace)}
+      .review-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;list-style:none;padding:0;margin:8px 0 15px}
+      .review-week li{text-align:center;min-width:0;padding:0}.review-week span{height:31px;display:grid;place-items:center;background:#edeadf;border:1px solid #c9c7b7;border-radius:4px;color:#585a4f;font-weight:700}
+      .review-week li[data-checked=true] span{color:#36542b;background:#deebcd;border-color:#859576}.review-week li:last-child span{border:2px solid #795b3c}
+      .review-week small{display:block;font-size:.8rem;margin-top:3px}.review-day [data-review-check-hint]{margin:10px 0}
+      .review-day [data-review-local]{font-size:.86rem;color:#585c50;margin:12px 0 0}.review-empty p{margin-bottom:12px}
+      @media(max-width:760px){.review-grid{grid-template-columns:1fr}}
+    </style><div class="review-page"><div class="inner-head"><h1 class="view-title">复习与打卡</h1><p class="lead">把学过的知识再试一次，记下今天的进步。</p></div>
+      <div class="review-grid"><section class="review-box review-quiz" aria-labelledby="rv-quiz-title">
+      <h2 id="rv-quiz-title">复习一课</h2><div data-review-quiz></div></section>
+      <section class="review-box review-day" data-review-day aria-labelledby="rv-day-title">
+      <h2 id="rv-day-title">我的打卡</h2><p class="review-streak">连续打卡 <strong data-review-streak>0</strong> 天</p>
+      <ol class="review-week" data-review-week aria-label="最近七天的打卡记录"></ol>
+      <p data-review-check-hint role="status"></p><button type="button" class="primary" data-review-checkin disabled>今天打卡</button>
+      <p data-review-local></p></section></div></div>`;
+
+    const panel = main.querySelector("[data-review-day]");
+    panel.querySelector("[data-review-checkin]").onclick = () => {
+      const today = new Date();
+      if (reviewFlag("studied", today) && !reviewFlag("checked", today)) reviewFlag("checked", today, true);
+      updateReviewDay();
+    };
+    updateReviewDay();
+    const quiz = main.querySelector("[data-review-quiz]");
+    if (!lessons.length) {
+      const next = firstIncomplete();
+      quiz.innerHTML = '<div class="review-empty"><p>先学完一节课并答对随堂练习，学过的课就会出现在这里。</p>' +
+        '<a class="primary" href="' + lessonLink(next) + '">去学《' + escape(lessonTitle(next)) + '》</a></div>';
+      return;
+    }
+    quiz.innerHTML = '<label for="rv-lesson">选择学过的课</label><select id="rv-lesson" data-review-picker>' +
+      lessons.map(id => '<option value="' + escape(id) + '">' + escape(lessonTitle(id)) + '</option>').join("") +
+      '</select><div class="review-q" data-review-exercise></div>';
+    const picker = quiz.querySelector("[data-review-picker]");
+    const exercise = quiz.querySelector("[data-review-exercise]");
+    function drawQuestion(focus = false) {
+      const id = reviewLessonId;
+      const q = bankItem(id);
+      picker.value = id;
+      exercise.innerHTML = '<h3 tabindex="-1" id="rv-question">' + escape(q.question) + '</h3>' +
+        '<div class="review-choices" role="group" aria-labelledby="rv-question">' +
+        q.choices.map((option, i) => '<button type="button" data-review-choice="' + i + '">' + escape(option) + '</button>').join("") +
+        '</div><p class="review-feedback" data-review-feedback role="status" aria-live="polite"></p>' +
+        '<div class="review-actions"><button type="button" class="lite" data-review-retake hidden>再做一次</button>' +
+        '<button type="button" class="primary" data-review-next hidden>下一道复习题</button></div>';
+      const feedback = exercise.querySelector("[data-review-feedback]");
+      const retry = exercise.querySelector("[data-review-retake]");
+      const next = exercise.querySelector("[data-review-next]");
+      retry.onclick = () => drawQuestion(true);
+      next.onclick = () => {
+        reviewLessonId = lessons[(lessons.indexOf(id) + 1) % lessons.length];
+        drawQuestion(true);
+      };
+      let answered = false;
+      const choices = [...exercise.querySelectorAll("[data-review-choice]")];
+      choices.forEach((button, index) => {
+        button.onclick = () => {
+          if (answered || !completed.has(id) || !canStudy(id)) return;
+          const right = index === q.answer;
+          choices.forEach(choice => { delete choice.dataset.result; });
+          button.dataset.result = right ? "right" : "wrong";
+          retry.hidden = false;
+          if (right) {
+            answered = true;
+            choices.forEach(choice => { choice.disabled = true; });
+            next.hidden = lessons.length < 2;
+            recordStudyToday();
+          }
+          feedback.textContent = right ? "答对了！" + q.explanation : "再试一次。" + q.explanation;
+        };
+      });
+      if (focus) exercise.querySelector("h3").focus();
+    }
+    picker.onchange = () => {
+      if (!lessons.includes(picker.value)) return;
+      reviewLessonId = picker.value;
+      drawQuestion();
+    };
+    drawQuestion();
+  }
+
   function bindQuestion(l,id){
     main.querySelector(".choices").onclick=e=>{
       const b=e.target.closest("button[data-choice]");if(!b)return;
@@ -412,19 +680,30 @@
       }
       const firstPass=!completed.has(id);
       completed.add(id);
+      recordStudyToday();
       try{localStorage.setItem(storeKey+":"+id,"1");}catch{storageWorks=false;sessionPasses.add(id);}
       let message="答对了！";
       if(firstPass) message+=completed.size===ids.length?"全部 15 课已通关。":"下一课已解锁。";
       feedback.textContent=message+l.explanation;
-      main.querySelector("#next-lesson").classList.remove("hidden");
+      const nextLesson=main.querySelector("#next-lesson");
+      nextLesson.classList.remove("hidden");
+      if(!main.querySelector("[data-quiz-checkin]")){
+        nextLesson.insertAdjacentHTML("afterend",' <a class="lite" href="#review" data-quiz-checkin>去打卡</a>');
+      }
       markLessonLinks();
     };
   }
   function drawProgress(){
     document.getElementById("progress-body").innerHTML='<p>已完成 <b>'+completed.size+' / '+ids.length+'</b> 节课</p><progress aria-label="已完成课程" value="'+completed.size+'" max="'+ids.length+'"></progress><p class="fine">'+(storageWorks?"答对随堂练习即可完成本课。进度保存在当前浏览器。":"答对随堂练习即可完成本课。当前浏览器仅在本次打开期间记录进度。")+ '</p><div class="progress-row"><span>零基础导读</span><span>'+foundationIds.filter(id=>completed.has(id)).length+' / 3</span></div>'+units.map((u,i)=>'<div class="progress-row"><span>'+pad(i+1)+'　'+u.title+'</span><span>'+u.lessons.filter((_,j)=>completed.has((i+1)+"/"+(j+1))).length+' / '+u.lessons.length+'</span></div>').join("")+'<a id="resume" class="primary dialog-action" href="'+lessonLink(firstIncomplete())+'">'+(completed.size===ids.length?"复习课程":"继续学习")+'</a>';
-    document.getElementById("resume").onclick=()=>dialog.close();
+    const resume=document.getElementById("resume");
+    resume.insertAdjacentHTML("afterend",' <a href="#review" class="lite" id="progress-review">复习与打卡</a>');
+    resume.onclick=()=>dialog.close();
+    document.getElementById("progress-review").onclick=()=>dialog.close();
   }
   function progress(){drawProgress();dialog.showModal();}
+  const headerNav=document.querySelector(".top nav");
+  headerNav.insertAdjacentHTML("beforeend",'<a data-nav="review" href="#review">复习打卡</a>');
+  headerNav.style.flexWrap="wrap";
   document.getElementById("open-progress").onclick=progress;
   document.getElementById("close-progress").onclick=()=>dialog.close();
   dialog.addEventListener("click",e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close();}});
@@ -444,6 +723,8 @@
     } else if(page==="lesson"&&practiceIds.includes(parts.slice(1).join("/"))){
       const i=Number(parts[1])-1,j=Number(parts[2])-1,l=units[i].lessons[j];
       openWorkshop(i,j);title=l.title;
+    } else if(hash==="review"){
+      title="复习与打卡";showReview();
     } else if(page==="practice"){
       title="代码练习";main.innerHTML='<div class="inner-head"><div class="section-code">CODE PLAYGROUND</div><h1 class="view-title">代码练习</h1><p class="lead">选一段示例，改改代码，在浏览器里观察输出。</p></div><div id="playground"></div>';window.renderPlayground(document.getElementById("playground"));
     } else if(page==="courses"){title="课程目录";main.innerHTML=catalog(false);}
@@ -455,10 +736,12 @@
   }
   document.querySelector(".skip").onclick=e=>{e.preventDefault();main.focus();main.scrollIntoView();};
   window.addEventListener("storage",event=>{
+    if(event.key===null || reviewStorageKey(event.key)) updateReviewDay();
     const prefix=storeKey+":";
     if(event.key!==null && event.key!==storeKey &&
        !(event.key.startsWith(prefix) && ids.includes(event.key.slice(prefix.length)))) return;
     if(!readProgress()) return;
+    if(location.hash==="#review") showReview();
     const id=routeLesson(location.hash);
     if(id){
       const locked=main.querySelector("[data-locked-lesson]");
