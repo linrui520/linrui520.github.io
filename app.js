@@ -204,11 +204,23 @@
     disposePrediction = undefined;
   }
   let completed = new Set(), storageWorks = true;
-  try {
-    const saved = JSON.parse(localStorage.getItem(storeKey) || "[]");
-    if (Array.isArray(saved)) completed = new Set(saved.filter(id=>ids.includes(id)));
-    for (const id of ids) if (localStorage.getItem(storeKey+":"+id)==="1") completed.add(id);
-  } catch {storageWorks = false;}
+  const sessionPasses = new Set();
+  function readProgress() {
+    const stored = new Set(sessionPasses);
+    try {
+      const legacy = localStorage.getItem(storeKey);
+      if (legacy) {
+        let saved;
+        try { saved = JSON.parse(legacy); } catch { /* Per-lesson records still apply. */ }
+        if (Array.isArray(saved)) saved.filter(id=>ids.includes(id)).forEach(id=>stored.add(id));
+      }
+      for (const id of ids) if (localStorage.getItem(storeKey+":"+id)==="1") stored.add(id);
+    } catch { storageWorks=false; return false; }
+    const changed = stored.size!==completed.size || [...stored].some(id=>!completed.has(id));
+    completed=stored;
+    return changed;
+  }
+  readProgress();
   const pad = n=>String(n).padStart(2,"0");
   const escape = s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   function icon(name){
@@ -229,10 +241,46 @@
     return '<svg aria-hidden="true" viewBox="0 0 300 88" fill="none" stroke="'+ink+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><g stroke-width="1" opacity=".47"><path d="M68 30h8m-4-4v8m145 19h9m-4.5-4.5v9"/><path d="M94 75h11m104-54h6" stroke-dasharray="2 3"/></g>'+[terminal,cap(104,33,"A")+cap(139,10,"1")+cap(171,36,"#"),graph,func,stack,app][i]+'</svg>';
   }
   function firstIncomplete(){return ids.find(id=>!completed.has(id))||ids[0];}
+  function canStudy(id) {
+    const firstGap=ids.findIndex(lessonId=>!completed.has(lessonId));
+    return firstGap===-1 || ids.indexOf(id)<=firstGap;
+  }
+  function routeLesson(hash) {
+    const id=hash.replace(/^#(?:lesson\/)?/, "");
+    return ids.includes(id) && lessonLink(id)===hash ? id : null;
+  }
+  function lessonTitle(id) {
+    if(id.startsWith("start/")) return window.foundations[Number(id.split("/")[1])-1].title;
+    const [unit,lesson]=id.split("/").map(Number);
+    return units[unit-1].lessons[lesson-1].title;
+  }
+  function lockedView(id) {
+    const next=firstIncomplete();
+    return '<section class="inner-head" data-locked-lesson="'+id+'"><div class="section-code">按顺序学习</div>'+
+      '<h1 class="view-title">这节课还没解锁</h1><p class="lead">先从《'+escape(lessonTitle(next))+'》继续。每答对一课的随堂练习，就能打开下一课。</p>'+
+      '<a class="primary" href="'+lessonLink(next)+'">去学《'+escape(lessonTitle(next))+'》</a></section>';
+  }
+  function markLessonLinks() {
+    const selectors=[".start-links a",".fd-aside a",".lesson-nav a",".catalog-head a"];
+    for(const selector of selectors) for(const link of main.querySelectorAll(selector)) {
+      const id=routeLesson(link.getAttribute("href"));
+      if(!id) continue;
+      const note=link.querySelector("[data-lock-note]");
+      if(!canStudy(id)){
+        link.setAttribute("data-locked","");
+        if(!note) link.insertAdjacentHTML("beforeend",'<small data-lock-note> · 未解锁</small>');
+      } else {
+        link.removeAttribute("data-locked");
+        if(note) note.remove();
+      }
+    }
+  }
   function card(u,i){
     const done = u.lessons.filter((_,j)=>completed.has((i+1)+"/"+(j+1))).length;
-    const j = u.lessons.findIndex((_,j)=>!completed.has((i+1)+"/"+(j+1)));
-    return '<a class="card" href="#lesson/'+(i+1)+'/'+(j<0?1:j+1)+'" aria-label="学习'+u.title+'"><div class="cover" style="--tint:'+accent[i]+'"><div class="card-top"><span class="unit-no">UNIT '+pad(i+1)+'</span><span class="level">'+u.level+'</span></div>'+cover(i)+'</div><div class="card-text"><h3>'+u.title+'</h3><p>'+u.summary+'</p><div class="card-meta">'+icon("book")+'<span>'+u.lessons.length+' 节课程</span><span class="end">'+(done?done+' / '+u.lessons.length+' 已完成':u.english)+'</span></div></div></a>';
+    const entry = u.lessons.findIndex((_,j)=>!completed.has((i+1)+"/"+(j+1)));
+    const locked=!canStudy((i+1)+"/1");
+    const id=(i+1)+"/"+(locked||entry<0?1:entry+1);
+    return '<a class="card" '+(locked?'data-locked ':'')+'href="'+lessonLink(id)+'" aria-label="'+(locked?'未解锁：':'学习')+u.title+'"><div class="cover" style="--tint:'+accent[i]+'"><div class="card-top"><span class="unit-no">UNIT '+pad(i+1)+'</span><span class="level">'+u.level+'</span></div>'+cover(i)+'</div><div class="card-text"><h3>'+u.title+'</h3><p>'+u.summary+'</p><div class="card-meta">'+icon("book")+'<span>'+u.lessons.length+' 节课程</span><span class="end">'+(locked?'未解锁':done?done+' / '+u.lessons.length+' 已完成':u.english)+'</span></div></div></a>';
   }
   function catalog(home){
     const tag=home?"h2":"h1";
@@ -240,12 +288,15 @@
       '<a href="#start/'+(i+1)+'"><span>'+pad(i+1)+'</span>'+escape(l.title)+'</a>'
     ).join("");
     return '<section class="catalog" aria-label="课程目录"><div class="section-code">LEARNING PATH</div><div class="catalog-head"><'+tag+' class="view-title">'+(home?"学习路线":"课程目录")+'<small>15 节课</small></'+tag+'><a class="hero-link" href="#lesson/3/2">'+icon("play")+'猜一猜：小猫会跳几次？</a></div>'+
-      '<div class="start-strip"><div><h3>零基础导读</h3><p>这三课只需阅读和观察。</p></div><div class="start-links">'+topics+'</div></div>'+
+      '<div class="start-strip"><div><h3>零基础导读</h3><p>从第一课开始，答对练习就能解锁下一课。</p></div><div class="start-links">'+topics+'</div></div>'+
       '<div class="track-heading"><h3>Swift 动手课程</h3><div class="tabs" aria-label="课程难度筛选">'+["全部","入门","进阶","实战"].map((name,i)=>'<button class="filter" aria-pressed="'+(!i)+'">'+name+'</button>').join("")+'</div></div><div class="cards">'+units.map(card).join("")+'</div></section>';
   }
+  function resumeLabel(){
+    return completed.size===ids.length?"复习课程":completed.has(ids[0])?"继续学习":"从零开始学";
+  }
   function home(){
-    const action=completed.size===ids.length?"复习课程":completed.size?"继续学习":"从零开始学";
-    return '<section class="hero"><div class="hero-content"><div class="kicker"><i></i>SWIFT LEARNING LAB</div><h1>在 <span>Mac</span> 上，<br>学会 <span>Swift.</span></h1><p>先从一部电影的时长认识什么是程序，<br>再读懂 Swift，亲手做一个 Mac 应用。</p><div class="hero-actions"><a href="'+lessonLink(firstIncomplete())+'" class="primary">'+icon("play")+action+'</a><a class="hero-link" href="#courses">'+icon("grid")+'浏览课程</a></div></div><div class="hero-art"><img src="hero.svg" alt="带有绿色命令提示符的复古 Macintosh 电脑插画"></div><span aria-hidden="true" class="corner c1">+</span><span aria-hidden="true" class="corner c2">+</span><span aria-hidden="true" class="corner c3">+</span><span aria-hidden="true" class="corner c4">+</span></section>'+catalog(true);
+    const action=resumeLabel();
+    return '<section class="hero"><div class="hero-content"><div class="kicker"><i></i>SWIFT LEARNING LAB</div><h1>在 <span>Mac</span> 上，<br>学会 <span>Swift.</span></h1><p>先从一部电影的时长认识什么是程序，<br>再读懂 Swift，亲手做一个 Mac 应用。</p><div class="hero-actions"><a data-resume href="'+lessonLink(firstIncomplete())+'" class="primary">'+icon("play")+action+'</a><a class="hero-link" href="#courses">'+icon("grid")+'浏览课程</a></div></div><div class="hero-art"><img src="hero.svg" alt="带有绿色命令提示符的复古 Macintosh 电脑插画"></div><span aria-hidden="true" class="corner c1">+</span><span aria-hidden="true" class="corner c2">+</span><span aria-hidden="true" class="corner c3">+</span><span aria-hidden="true" class="corner c4">+</span></section>'+catalog(true);
   }
   let preferredMode = "cli";
   try {
@@ -354,18 +405,26 @@
       const right=Number(b.dataset.choice)===l.answer;
       main.querySelectorAll(".choices button").forEach(el=>el.classList.remove("right","wrong"));
       b.classList.add(right?"right":"wrong");
-      main.querySelector(".feedback").textContent=right?"答对了！"+l.explanation:"再想一想。"+l.explanation+" 你可以重新选一次。";
-      if(right){
-        completed.add(id);
-        try{localStorage.setItem(storeKey+":"+id,"1");}catch{storageWorks=false;}
-        main.querySelector("#next-lesson").classList.remove("hidden");
+      const feedback=main.querySelector(".feedback");
+      if(!right){
+        feedback.textContent="再想一想。"+l.explanation+" 你可以重新选一次。";
+        return;
       }
+      const firstPass=!completed.has(id);
+      completed.add(id);
+      try{localStorage.setItem(storeKey+":"+id,"1");}catch{storageWorks=false;sessionPasses.add(id);}
+      let message="答对了！";
+      if(firstPass) message+=completed.size===ids.length?"全部 15 课已通关。":"下一课已解锁。";
+      feedback.textContent=message+l.explanation;
+      main.querySelector("#next-lesson").classList.remove("hidden");
+      markLessonLinks();
     };
   }
-  function progress(){
+  function drawProgress(){
     document.getElementById("progress-body").innerHTML='<p>已完成 <b>'+completed.size+' / '+ids.length+'</b> 节课</p><progress aria-label="已完成课程" value="'+completed.size+'" max="'+ids.length+'"></progress><p class="fine">'+(storageWorks?"答对随堂练习即可完成本课。进度保存在当前浏览器。":"答对随堂练习即可完成本课。当前浏览器仅在本次打开期间记录进度。")+ '</p><div class="progress-row"><span>零基础导读</span><span>'+foundationIds.filter(id=>completed.has(id)).length+' / 3</span></div>'+units.map((u,i)=>'<div class="progress-row"><span>'+pad(i+1)+'　'+u.title+'</span><span>'+u.lessons.filter((_,j)=>completed.has((i+1)+"/"+(j+1))).length+' / '+u.lessons.length+'</span></div>').join("")+'<a id="resume" class="primary dialog-action" href="'+lessonLink(firstIncomplete())+'">'+(completed.size===ids.length?"复习课程":"继续学习")+'</a>';
-    dialog.showModal();document.getElementById("resume").onclick=()=>dialog.close();
+    document.getElementById("resume").onclick=()=>dialog.close();
   }
+  function progress(){drawProgress();dialog.showModal();}
   document.getElementById("open-progress").onclick=progress;
   document.getElementById("close-progress").onclick=()=>dialog.close();
   dialog.addEventListener("click",e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close();}});
@@ -374,7 +433,11 @@
     const hash=location.hash.slice(1), parts=hash.split("/");
     let page=parts[0]||"home", title="学习首页";
     if(dialog.open)dialog.close();
-    if(page==="start"&&foundationIds.includes(hash)){
+    const id=routeLesson(location.hash);
+    if(id && !canStudy(id)){
+      title="课程未解锁";
+      main.innerHTML=lockedView(id);
+    } else if(page==="start"&&foundationIds.includes(hash)){
       const index=Number(parts[1])-1, l=window.foundations[index];
       title=l.title;main.innerHTML=window.foundationView(index,l,completed.has(hash));
       window.bindFoundationDemo(main,l);bindQuestion(l,hash);
@@ -387,15 +450,40 @@
     else{page="home";main.innerHTML=home();}
     document.querySelectorAll("[data-nav]").forEach(a=>{const active=a.dataset.nav===(["lesson","start"].includes(page)?"courses":page);a.classList.toggle("active",active);if(active)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current");});
     main.querySelectorAll(".filter").forEach(b=>b.onclick=()=>{main.querySelectorAll(".filter").forEach(el=>el.setAttribute("aria-pressed",String(el===b)));main.querySelector(".cards").innerHTML=units.map((u,i)=>b.textContent==="全部"||b.textContent===u.level?card(u,i):"").join("");});
+    markLessonLinks();
     document.title=title+" · Swift Lab";window.scrollTo(0,0);
   }
   document.querySelector(".skip").onclick=e=>{e.preventDefault();main.focus();main.scrollIntoView();};
   window.addEventListener("storage",event=>{
     const prefix=storeKey+":";
-    if(event.key?.startsWith(prefix)&&event.newValue==="1"){
-      const id=event.key.slice(prefix.length);
-      if(ids.includes(id)) completed.add(id);
+    if(event.key!==null && event.key!==storeKey &&
+       !(event.key.startsWith(prefix) && ids.includes(event.key.slice(prefix.length)))) return;
+    if(!readProgress()) return;
+    const id=routeLesson(location.hash);
+    if(id){
+      const locked=main.querySelector("[data-locked-lesson]");
+      if(locked || !canStudy(id)) {
+        render();
+        return;
+      }
+      const next=main.querySelector("#next-lesson");
+      if(next) next.classList.toggle("hidden",!completed.has(id));
+      markLessonLinks();
+    } else {
+      const cards=main.querySelector(".cards");
+      if(cards){
+        const filter=main.querySelector('.filter[aria-pressed="true"]');
+        const level=filter?.textContent || "全部";
+        cards.innerHTML=units.map((u,i)=>level==="全部"||u.level===level?card(u,i):"").join("");
+        const resume=main.querySelector("[data-resume]");
+        if(resume){
+          resume.setAttribute("href",lessonLink(firstIncomplete()));
+          resume.innerHTML=icon("play")+resumeLabel();
+        }
+        markLessonLinks();
+      }
     }
+    if(dialog.open) drawProgress();
   });
   window.addEventListener("hashchange",()=>{render();main.focus({preventScroll:true});});render();
 })();
